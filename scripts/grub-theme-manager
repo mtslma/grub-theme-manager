@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Main executable for the GRUB Theme Manager
+
+# Find the true location of the script and source dependencies
+REAL_SCRIPT_PATH=$(readlink -f "${BASH_SOURCE[0]}")
+SCRIPT_DIR=$(dirname "$REAL_SCRIPT_PATH")
+source "$SCRIPT_DIR/../colors.sh"
+
+set -euo pipefail # Exit on errors or unset variables
+
+# Trap Ctrl+C for a graceful exit
+trap "echo; echo -e '${C_ORANGE}Aborted by user.${C_RESET}'; exit 1" INT
+
+# Source the rest of the configuration and functions
+source "$SCRIPT_DIR/grub-theme.conf"
+source "$SCRIPT_DIR/grub-theme-functions.sh"
+
+# Ensure script is run as root and dependencies are installed
+require_root
+ensure_deps
+
+# Launch the main menu
+main_menu
