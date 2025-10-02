@@ -65,6 +65,10 @@ list_installed_themes() {
   [ -d "$INSTALL_DIR" ] && ls -1 "$INSTALL_DIR" 2>/dev/null || true
 }
 
+# --------------------
+# Core Actions
+# --------------------
+
 install_selected_local_themes() {
   local local_themes installed missing selection
 
@@ -90,6 +94,47 @@ install_selected_local_themes() {
   read -r -p "Done. Press Enter to continue..."
 }
 
+download_missing_from_github() {
+  echo -e "${C_LIGHT_GRAY}Checking remote repository for new themes...${C_RESET}"
+  local remote local_list to_download chosen tmpdir
+
+  remote=$(curl -sSf "$API_CONTENTS_URL" | jq -r '.[].name' 2>/dev/null) || remote=""
+  [ -z "$remote" ] && { echo -e "${C_LIGHT_GRAY}No themes found or network error.${C_RESET}"; read -r -p "Press Enter to continue..."; return; }
+
+  local_list=$(list_local_repo_themes)
+  to_download=$(comm -23 <(echo "$remote") <(echo "$local_list"))
+
+  [ -z "$to_download" ] && { echo -e "${C_LIGHT_GRAY}Your local themes are up-to-date.${C_RESET}"; read -r -p "Press Enter to continue..."; return; }
+
+  chosen=$(echo "$to_download" | fzf --multi --prompt="Themes to download> " --height=40% --header=$'Download Remote Themes\n' --no-sort)
+  [ -z "$chosen" ] && { echo -e "${C_LIGHT_GRAY}No selection made.${C_RESET}"; read -r -p "Press Enter to continue..."; return; }
+
+  mkdir -p "$LOCAL_THEMES_DIR"
+  for t in $chosen; do
+    echo -e "${C_ORANGE}Downloading: $t...${C_RESET}"
+    tmpdir=$(mktemp -d)
+
+    curl -sSf "$API_CONTENTS_URL/$t" | jq -r '.[].path' 2>/dev/null | while read -r path; do
+      [ -z "$path" ] && continue
+      mkdir -p "$tmpdir/$(dirname "$path")"
+      wget -q -O "$tmpdir/$path" "$RAW_BASE_URL/$path" || echo -e "${C_RED}Warning: Failed to download sub-file: $path${C_RESET}"
+    done
+
+    THEME_SOURCE_PATH="$tmpdir/themes/$t"
+    if [ -d "$THEME_SOURCE_PATH" ]; then
+      mv "$THEME_SOURCE_PATH" "$LOCAL_THEMES_DIR/"
+      echo -e "${C_YELLOW}Successfully downloaded: $t${C_RESET}"
+    else
+      echo -e "${C_RED}Failed to process download for '$t'. Structure was unexpected.${C_RESET}"
+    fi
+
+    rm -rf "$tmpdir"
+  done
+
+  echo -e "${C_YELLOW}Download process complete.${C_RESET}"
+  read -r -p "Press Enter to continue..."
+}
+
 remove_themes() {
   local installed chosen confirm
   installed=$(list_installed_themes)
@@ -105,6 +150,7 @@ remove_themes() {
   for t in $chosen; do
     rm -rf "$INSTALL_DIR/$t" && echo -e "${C_YELLOW}Removed: $t${C_RESET}" || echo -e "${C_RED}Failed to remove: $t${C_RESET}"
   done
+
   ensure_clean_boot_params
   update-grub >/dev/null 2>&1 || true
   read -r -p "Done. Press Enter to continue..."
@@ -134,7 +180,9 @@ activate_theme() {
   read -r -p "Press Enter to continue..."
 }
 
+# --------------------
 # Menu
+# --------------------
 main_menu() {
   local options="Activate a theme\nInstall local themes\nRemove installed themes\nDownload themes from GitHub\nExit"
 
