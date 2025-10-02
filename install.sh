@@ -39,7 +39,7 @@ configure_grub() {
   fi
 
   # Remove the splash screen that often hides the GRUB menu
-  sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"/GRUB_CMDLINE_LINUX_DEFAULT="quiet"/' "$GRUB_CONFIG_FILE"
+  sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"/GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3"/' "$GRUB_CONFIG_FILE"
 }
 
 # 1. Check for root privileges
