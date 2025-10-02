@@ -38,8 +38,9 @@ configure_grub() {
     echo 'GRUB_GFXPAYLOAD_LINUX=keep' >> "$GRUB_CONFIG_FILE"
   fi
 
-  # Remove the splash screen that often hides the GRUB menu
-  sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"/GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3"/' "$GRUB_CONFIG_FILE"
+  # --- THIS IS THE FIX ---
+  # Replaces 'quiet splash' with a set of parameters to silence kernel and systemd logs
+  sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"/GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=0 systemd.show_status=false"/' "$GRUB_CONFIG_FILE"
 }
 
 # 1. Check for root privileges
