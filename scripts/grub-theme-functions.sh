@@ -84,7 +84,7 @@ install_selected_local_themes() {
   read -r -p "Done. Press Enter to continue..."
 }
 
-# --- THIS FUNCTION HAS BEEN UPDATED ---
+# --- THIS FUNCTION HAS BEEN FIXED ---
 download_missing_from_github() {
   echo -e "${C_LIGHT_GRAY}Checking remote repository for new themes...${C_RESET}"
   local remote local_list to_download chosen tmpdir
@@ -104,18 +104,21 @@ download_missing_from_github() {
     echo -e "${C_ORANGE}Downloading: $t...${C_RESET}"
     tmpdir=$(mktemp -d)
     
-    # Download all theme files into the temporary directory
+    # Download all theme files into the temporary directory, preserving structure
     curl -sSf "$API_CONTENTS_URL/$t" | jq -r '.[].path' 2>/dev/null | while read -r path; do
       [ -z "$path" ] && continue
       mkdir -p "$tmpdir/$(dirname "$path")"
-      wget -q -O "$tmpdir/$path" "$RAW_BASE_URL/$path"
+      wget -q -O "$tmpdir/$path" "$RAW_BASE_URL/$path" || echo -e "${C_RED}Warning: Failed to download sub-file: $path${C_RESET}"
     done
 
-    # The theme is inside a 'themes' subfolder. Check if it exists.
-    if [ -d "$tmpdir/themes/$t" ]; then
-        # Move the theme folder from 'tmpdir/themes/' to the final destination
-        mv "$tmpdir/themes/$t" "$LOCAL_THEMES_DIR/"
-        echo -e "${C_YELLOW}Downloaded: $t${C_RESET}"
+    # Define the source path of the theme inside the temp directory
+    THEME_SOURCE_PATH="$tmpdir/themes/$t"
+
+    # Check if the downloaded theme exists at the expected path
+    if [ -d "$THEME_SOURCE_PATH" ]; then
+        # Move the theme folder from the temp directory to the final destination
+        mv "$THEME_SOURCE_PATH" "$LOCAL_THEMES_DIR/"
+        echo -e "${C_YELLOW}Successfully downloaded: $t${C_RESET}"
     else
         echo -e "${C_RED}Failed to process download for '$t'. Structure was unexpected.${C_RESET}"
     fi
