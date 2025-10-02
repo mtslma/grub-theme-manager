@@ -84,9 +84,11 @@ install_selected_local_themes() {
   read -r -p "Done. Press Enter to continue..."
 }
 
+# --- THIS FUNCTION HAS BEEN UPDATED ---
 download_missing_from_github() {
   echo -e "${C_LIGHT_GRAY}Checking remote repository for new themes...${C_RESET}"
   local remote local_list to_download chosen tmpdir
+
   remote=$(curl -sSf "$API_CONTENTS_URL" | jq -r '.[].name' 2>/dev/null) || remote=""
   [ -z "$remote" ] && { echo -e "${C_LIGHT_GRAY}No themes found or network error.${C_RESET}"; read -r -p "Press Enter to continue..."; return; }
 
@@ -101,16 +103,27 @@ download_missing_from_github() {
   for t in $chosen; do
     echo -e "${C_ORANGE}Downloading: $t...${C_RESET}"
     tmpdir=$(mktemp -d)
+    
+    # Download all theme files into the temporary directory
     curl -sSf "$API_CONTENTS_URL/$t" | jq -r '.[].path' 2>/dev/null | while read -r path; do
       [ -z "$path" ] && continue
       mkdir -p "$tmpdir/$(dirname "$path")"
-      wget -q -O "$tmpdir/$path" "$RAW_BASE_URL/$path" || echo -e "${C_RED}Failed to download: $path${C_RESET}"
+      wget -q -O "$tmpdir/$path" "$RAW_BASE_URL/$path"
     done
-    cp -a "$tmpdir/$t" "$LOCAL_THEMES_DIR/" 2>/dev/null || cp -a "$tmpdir"/* "$LOCAL_THEMES_DIR/" 2>/dev/null
+
+    # The theme is inside a 'themes' subfolder. Check if it exists.
+    if [ -d "$tmpdir/themes/$t" ]; then
+        # Move the theme folder from 'tmpdir/themes/' to the final destination
+        mv "$tmpdir/themes/$t" "$LOCAL_THEMES_DIR/"
+        echo -e "${C_YELLOW}Downloaded: $t${C_RESET}"
+    else
+        echo -e "${C_RED}Failed to process download for '$t'. Structure was unexpected.${C_RESET}"
+    fi
+
     rm -rf "$tmpdir"
   done
 
-  echo -e "${C_YELLOW}Download complete.${C_RESET}"
+  echo -e "${C_YELLOW}Download process complete.${C_RESET}"
   read -r -p "Press Enter to continue..."
 }
 
@@ -171,8 +184,7 @@ main_menu() {
     local choice
     choice=$(echo -e "$options" | fzf --height=10 --prompt="Select an option > " --header=$'Use ARROWS and ENTER\n' --no-sort)
     
-    # If ESC is pressed, fzf returns a non-zero exit code and choice is empty.
-    # The trap handles Ctrl+C, so we only need to check for an empty choice.
+    # If ESC is pressed, choice is empty and the loop continues.
     [ -z "$choice" ] && continue
 
     case "$choice" in
